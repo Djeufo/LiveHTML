@@ -2,12 +2,17 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>HTML Compiler with Syntax Highlighting</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HTML Compiler with Live Preview</title>
     <link rel="icon" href="./img/logo.png" type="image/png" />
-    <!-- CodeMirror CSS & JS -->
+
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/dracula.min.css"
     />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/htmlmixed/htmlmixed.min.js"></script>
@@ -15,7 +20,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/css/css.min.js"></script>
 
-    <!-- Autocomplete Addons -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/show-hint.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/hint/html-hint.min.js"></script>
     <link
@@ -24,6 +28,22 @@
     />
 
     <style>
+      :root {
+        --bg-light: #ffffff;
+        --text-light: #000000;
+        --controls-bg-light: #f0f0f0;
+        --divider-light: #ccc;
+        --editor-bg-light: #f5f5f5;
+        --editor-text-light: #000;
+
+        --bg-dark: #1e1e1e;
+        --text-dark: #ffffff;
+        --controls-bg-dark: #333333;
+        --divider-dark: #555;
+        --editor-bg-dark: #2d2d2d;
+        --editor-text-dark: #fff;
+      }
+
       * {
         box-sizing: border-box;
       }
@@ -35,6 +55,36 @@
         margin: 0;
         font-family: sans-serif;
         transition: background-color 0.3s, color 0.3s;
+        background-color: var(--bg-light);
+        color: var(--text-light);
+      }
+
+      /* Light Theme */
+      body.light {
+        background-color: var(--bg-light);
+        color: var(--text-light);
+      }
+
+      body.light #controls,
+      body.light footer {
+        background-color: var(--controls-bg-light);
+        color: var(--text-light);
+      }
+
+      /* Dark Theme */
+      body.dark {
+        background-color: var(--bg-dark);
+        color: var(--text-dark);
+      }
+
+      body.dark #controls,
+      body.dark footer {
+        background-color: var(--controls-bg-dark);
+        color: var(--text-dark);
+      }
+
+      body.dark .divider {
+        background-color: var(--divider-dark);
       }
 
       #controls {
@@ -43,6 +93,7 @@
         justify-content: space-between;
         align-items: center;
         gap: 10px;
+        flex-shrink: 0;
       }
 
       #editor-container {
@@ -55,6 +106,10 @@
         width: 50%;
         height: 100%;
         font-size: 16px;
+        background-color: var(--editor-bg-light);
+      }
+      body.dark .CodeMirror {
+        background-color: var(--editor-bg-dark);
       }
 
       iframe {
@@ -66,66 +121,25 @@
 
       .divider {
         width: 2px;
-        background-color: #ccc;
-      }
-
-      button {
-        padding: 8px 16px;
-        font-size: 14px;
-        cursor: pointer;
+        background-color: var(--divider-light);
+        flex-shrink: 0;
       }
 
       footer {
         padding: 10px;
         text-align: center;
         font-size: 14px;
+        flex-shrink: 0;
       }
 
-      /* Light Theme */
-      body.light {
-        background-color: #ffffff;
-        color: #000000;
-      }
-
-      body.light #controls,
-      body.light footer {
-        background-color: #f0f0f0;
-        color: #000;
-      }
-
-      /* Dark Theme */
-      body.dark {
-        background-color: #1e1e1e;
-        color: #ffffff;
-      }
-
-      body.dark #controls,
-      body.dark footer {
-        background-color: #333333;
-        color: #ffffff;
-      }
-
-      body.dark .divider {
-        background-color: #555;
-      }
-
-      body.dark .CodeMirror {
-        background-color: #2d2d2d;
-        color: #fff;
-      }
-
-      body.dark .CodeMirror-gutters {
-        background-color: #2d2d2d;
-        color: #aaa;
-      }
-
-      /* General button style */
+      /* General Button Styles */
       button {
         padding: 10px 18px;
         font-size: 14px;
         border: none;
         border-radius: 6px;
         transition: background-color 0.3s ease, color 0.3s ease;
+        cursor: pointer;
         background-color: #007bff;
         color: white;
       }
@@ -134,7 +148,6 @@
         background-color: #0056b3;
       }
 
-      /* Cancel Button */
       button.cancel-btn {
         background-color: #6c757d;
       }
@@ -142,8 +155,9 @@
       button.cancel-btn:hover {
         background-color: #5a6268;
       }
-      /* Export Modal Styling - Always Light Themed */
-      #exportModal {
+
+      /* Modal Styling */
+      .modal-overlay {
         display: none;
         position: fixed;
         top: 0;
@@ -153,14 +167,13 @@
         background: rgba(0, 0, 0, 0.4);
         justify-content: center;
         align-items: center;
-        animation: fadeIn 0.3s ease-in-out;
         z-index: 1000;
-        font-family: sans-serif;
+        animation: fadeIn 0.3s ease-in-out;
       }
 
-      #exportModal > div {
-        background-color: #ffffff !important;
-        color: #000000 !important;
+      .modal-content {
+        background-color: var(--bg-light);
+        color: var(--text-light);
         padding: 20px;
         border-radius: 8px;
         width: 320px;
@@ -169,7 +182,23 @@
         animation: slideUp 0.3s ease-in-out;
       }
 
-      /* Input Field in Modal */
+      body.dark .modal-content {
+        background-color: var(--controls-bg-dark);
+        color: var(--text-dark);
+      }
+
+      #docModal .modal-content {
+        width: 80%;
+        max-width: 900px;
+        max-height: 80vh;
+        overflow-y: auto;
+      }
+
+      #docModal .modal-content h3 {
+        margin-top: 0;
+      }
+
+      /* Input Field */
       #fileNameInput {
         width: 100%;
         padding: 8px;
@@ -177,31 +206,14 @@
         border-radius: 4px;
         margin: 10px 0;
         font-size: 14px;
-        background-color: #fff !important;
-        color: #000 !important;
+        background-color: var(--bg-light);
+        color: var(--text-light);
       }
 
-      /* Modal Buttons */
-      #exportModal button {
-        padding: 10px 18px;
-        font-size: 14px;
-        border: none;
-        border-radius: 6px;
-        transition: background-color 0.3s ease, color 0.3s ease;
-        background-color: #007bff;
-        color: white;
-      }
-
-      #exportModal button:hover {
-        background-color: #0056b3;
-      }
-
-      #exportModal .cancel-btn {
-        background-color: #6c757d;
-      }
-
-      #exportModal .cancel-btn:hover {
-        background-color: #5a6268;
+      body.dark #fileNameInput {
+        background-color: var(--controls-bg-dark);
+        border-color: #555;
+        color: var(--text-dark);
       }
 
       /* Modal Animations */
@@ -224,61 +236,13 @@
           opacity: 1;
         }
       }
-
-      /* Light/Dark Modal Color Support */
-      body.dark #exportModal > div {
-        background-color: #2d2d2d;
-        color: #fff;
-      }
-
-      /* Input Field */
-      #fileNameInput {
-        width: 100%;
-        padding: 8px;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-        margin: 10px 0;
-        font-size: 14px;
-      }
-
-      body.dark #fileNameInput {
-        background-color: #3c3c3c;
-        border-color: #555;
-        color: #fff;
-      }
-
-      /* Animation for Modal */
-      @keyframes fadeIn {
-        from {
-          opacity: 0;
-        }
-        to {
-          opacity: 1;
-        }
-      }
-
-      @keyframes slideUp {
-        from {
-          transform: translateY(20px);
-          opacity: 0;
-        }
-        to {
-          transform: translateY(0);
-          opacity: 1;
-        }
-      }
-
-      body.dark #docModal > div {
-  background-color: #2d2d2d;
-  color: white;
-}
-
     </style>
   </head>
+
   <body class="light">
     <div id="controls">
       <div>HTML Compiler</div>
-      <div>
+      <div style="display: flex; gap: 10px">
         <button id="exportBtn">Export as HTML</button>
         <button id="themeToggle">Switch to Dark Theme</button>
         <button id="docBtn">Docs</button>
@@ -291,158 +255,156 @@
       <iframe id="preview"></iframe>
     </div>
 
-    <!-- Export Modal -->
-    <div
-      id="exportModal"
-      style="
-        display: none;
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 0, 0, 0.5);
-        justify-content: center;
-        align-items: center;
-      "
-    >
-      <div
-        style="
-          background: white;
-          padding: 20px;
-          border-radius: 5px;
-          width: 300px;
-          max-width: 90%;
-        "
-      >
+    <div id="exportModal" class="modal-overlay">
+      <div class="modal-content">
         <h3>Export HTML</h3>
         <label for="fileNameInput">File name:</label>
-        <input
-          type="text"
-          id="fileNameInput"
-          value="index.html"
-          style="width: 100%; margin: 10px 0; padding: 5px"
-        />
+        <input type="text" id="fileNameInput" value="index.html" />
         <div style="display: flex; justify-content: flex-end; gap: 10px">
-          <button id="cancelExport">Cancel</button>
+          <button id="cancelExport" class="cancel-btn">Cancel</button>
           <button id="confirmExport">Download</button>
         </div>
       </div>
     </div>
 
-    <!-- Doc Modal -->
-<div
-  id="docModal"
-  style="
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    justify-content: center;
-    align-items: center;
-    z-index: 1001;
-  "
->
-<div
-  style="
-    background: white;
-    padding: 20px;
-    border-radius: 8px;
-    width: 80%;
-    max-width: 90%;
-    max-height: 80vh;
-    overflow-y: auto;
-    color: black;
-  "
->
-
-
-    <h3>App Notes</h3>
-    <p>
-      This is a lightweight HTML compiler with live preview and export features.
-      <br /><br />
-      Features:
-      <ul>
-        <li>Syntax highlighting via CodeMirror</li>
-        <li>Live rendering of HTML code</li>
-        <li>Light/Dark theme toggle</li>
-        <li>Export as .html file</li>
-        <li>Autocomplete support for HTML tags (Ctrl + Space)</li>
-      </ul>
-    </p>
-    <div style="text-align: right; margin-top: 15px">
-      <button id="closeDocBtn" class="cancel-btn">Close</button>
+    <div id="docModal" class="modal-overlay">
+      <div class="modal-content">
+        <h3>App Notes</h3>
+        <p>
+          This is a lightweight HTML compiler with live preview and export
+          features.
+          <br /><br />
+          Features:
+        </p>
+        <ul>
+          <li>Syntax highlighting via CodeMirror</li>
+          <li>Live rendering of HTML code</li>
+          <li>Light/Dark theme toggle</li>
+          <li>Export as .html file</li>
+          <li>Autocomplete support for HTML tags (Ctrl + Space)</li>
+        </ul>
+        <div style="text-align: right; margin-top: 15px">
+          <button id="closeDocBtn" class="cancel-btn">Close</button>
+        </div>
+      </div>
     </div>
-  </div>
-</div>
-
 
     <footer>&copy; 2025 Dr. Djeufo, All rights reserved.</footer>
 
     <script>
-      // Initialize CodeMirror
+      // --- Cookie Utilities ---
+      function setCookie(name, value, days) {
+        const expires = new Date(Date.now() + days * 864e5).toUTCString();
+        document.cookie =
+          name +
+          "=" +
+          encodeURIComponent(value) +
+          "; expires=" +
+          expires +
+          "; path=/";
+      }
+
+      function getCookie(name) {
+        return document.cookie.split("; ").reduce((r, v) => {
+          const parts = v.split("=");
+          return parts[0] === name ? decodeURIComponent(parts[1]) : "";
+        }, "");
+      }
+
+      // --- DOM Elements ---
+      const body = document.body;
+      const preview = document.getElementById("preview");
+      const themeToggle = document.getElementById("themeToggle");
+      const exportBtn = document.getElementById("exportBtn");
+      const docBtn = document.getElementById("docBtn");
+      const exportModal = document.getElementById("exportModal");
+      const docModal = document.getElementById("docModal");
+      const fileNameInput = document.getElementById("fileNameInput");
+      const confirmExport = document.getElementById("confirmExport");
+      const cancelExport = document.getElementById("cancelExport");
+      const closeDocBtn = document.getElementById("closeDocBtn");
+
+      // --- CodeMirror Initialization ---
       const editor = CodeMirror.fromTextArea(
         document.getElementById("htmlInput"),
         {
           mode: "htmlmixed",
           lineNumbers: true,
           lineWrapping: true,
-          theme: "default",
+          theme: "dracula",
           extraKeys: {
             "Ctrl-Space": "autocomplete",
           },
         }
       );
 
-      const preview = document.getElementById("preview");
-      const themeToggle = document.getElementById("themeToggle");
-      const exportBtn = document.getElementById("exportBtn");
-      const body = document.body;
+      const defaultHTML = `<!DOCTYPE html>
+<html>
+<head>
+<title>Page Title</title>
+</head>
+<body>
 
-      // Default HTML content
-      const defaultHTML =
-        "<!DOCTYPE html>\n<html>\n<head>\n<title>Page Title</title>\n</head>\n<body>\n\n<h1>This is a Heading</h1>\n<p>This is a paragraph.</p>\n\n</body>\n</html>";
+<h1>This is a Heading</h1>
+<p>This is a paragraph.</p>
 
-      editor.setValue(defaultHTML);
-      preview.srcdoc = defaultHTML;
+</body>
+</html>`;
 
-      // Live update preview
+      // --- Initial Setup and State Restoration ---
+      // Load saved theme
+      const savedTheme = getCookie("theme");
+      if (savedTheme === "dark") {
+        body.classList.add("dark");
+        editor.setOption("theme", "dracula");
+        themeToggle.textContent = "Switch to Light Theme";
+      } else {
+        body.classList.add("light");
+        editor.setOption("theme", "default");
+        themeToggle.textContent = "Switch to Dark Theme";
+      }
+
+      // Load saved code or use default
+      const savedHTML = getCookie("htmlContent");
+      if (savedHTML) {
+        editor.setValue(savedHTML);
+      } else {
+        editor.setValue(defaultHTML);
+      }
+      preview.srcdoc = editor.getValue();
+
+      // --- Event Listeners ---
+      // Live update preview and save to cookie on change
       editor.on("change", () => {
-        preview.srcdoc = editor.getValue();
+        const html = editor.getValue();
+        preview.srcdoc = html;
+        setCookie("htmlContent", html, 7);
       });
 
       // Toggle Theme
       themeToggle.addEventListener("click", () => {
         const isDark = body.classList.toggle("dark");
-        body.classList.toggle("light");
+        body.classList.toggle("light", !isDark);
 
         themeToggle.textContent = isDark
           ? "Switch to Light Theme"
           : "Switch to Dark Theme";
+        editor.setOption("theme", isDark ? "dracula" : "default");
 
-        editor.setOption("theme", isDark ? "default" : "default"); // Can replace with dark theme like "monokai"
+        setCookie("theme", isDark ? "dark" : "light", 30);
       });
 
-      const exportModal = document.getElementById("exportModal");
-      const fileNameInput = document.getElementById("fileNameInput");
-      const confirmExport = document.getElementById("confirmExport");
-      const cancelExport = document.getElementById("cancelExport");
-
-      // Show modal on export click
+      // Export Modal Logic
       exportBtn.addEventListener("click", () => {
-        fileNameInput.value = "index.html"; // Reset default
         exportModal.style.display = "flex";
         fileNameInput.focus();
       });
 
-      // Download when user confirms
       confirmExport.addEventListener("click", () => {
-        let fileName = fileNameInput.value.trim();
-        if (!fileName) fileName = "index.html";
-        if (!fileName.endsWith(".html")) fileName += ".html";
+        let fileName = fileNameInput.value.trim() || "index.html";
+        if (!fileName.endsWith(".html")) {
+          fileName += ".html";
+        }
 
         const blob = new Blob([editor.getValue()], { type: "text/html" });
         const url = URL.createObjectURL(blob);
@@ -455,24 +417,18 @@
         exportModal.style.display = "none";
       });
 
-      // Hide modal on cancel
       cancelExport.addEventListener("click", () => {
         exportModal.style.display = "none";
       });
 
+      // Docs Modal Logic
+      docBtn.addEventListener("click", () => {
+        docModal.style.display = "flex";
+      });
 
-      const docBtn = document.getElementById("docBtn");
-const docModal = document.getElementById("docModal");
-const closeDocBtn = document.getElementById("closeDocBtn");
-
-docBtn.addEventListener("click", () => {
-  docModal.style.display = "flex";
-});
-
-closeDocBtn.addEventListener("click", () => {
-  docModal.style.display = "none";
-});
-
+      closeDocBtn.addEventListener("click", () => {
+        docModal.style.display = "none";
+      });
     </script>
   </body>
 </html>
